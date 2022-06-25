@@ -19,7 +19,7 @@ def execute(cmd: str) -> str:
         return
     # run command with args and return an output
     output = subprocess.check_output(shlex.split(cmd),
-                                     stderr=subprocess.STDOUT)
+                                     stderr=subprocess.STDOUT, shell=True)
     return output.decode()  # output as a string, not bytes
 
 
