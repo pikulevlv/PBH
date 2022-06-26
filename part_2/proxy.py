@@ -21,7 +21,7 @@ HEX_FILTER = ''.join(
 )
 
 
-def hexdump(src, length=16, show=True):
+def hexdump(src: bytes, length: int = 16, show: bool = True) -> list:
     """
     Function hexdump gets bytes and shows it in hexadecimal format.
     It shows data as hexadecimal and as ASCII
@@ -47,10 +47,11 @@ def hexdump(src, length=16, show=True):
         return results
 
 
-def receive_from(connection, timeout=5):
+def receive_from(connection, timeout: int = 10) -> bytes:
     """
     Function receive_from gets either local or remote data
     connection - socket object
+    timeout: int, tima of waiting an answer
     """
     buffer = b""
     connection.settimeout(timeout)
@@ -65,19 +66,21 @@ def receive_from(connection, timeout=5):
     return buffer
 
 
-def request_handler(buffer):
+def request_handler(buffer: bytes) -> bytes:
     """Function request_handler"""
     # modificate a package
     return buffer
 
 
-def response_handler(buffer):
+def response_handler(buffer: bytes) -> bytes:
     """Function response_handler"""
     # modificate a package
     return buffer
 
 
-def proxy_handler(client_socket, remote_host, remote_port, receive_first):
+def proxy_handler(client_socket, remote_host: str,
+                  remote_port: int, receive_first: bool,
+                  timeout: int = 10) -> None:
     """Function proxy_handler"""
     remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     remote_socket.connect((remote_host, remote_port))
@@ -85,7 +88,7 @@ def proxy_handler(client_socket, remote_host, remote_port, receive_first):
     # Make sure that don't need to init a connection with remote part
     # and ask a data before to go to the main cycle
     if receive_first:
-        remote_buffer = receive_from(remote_socket)
+        remote_buffer = receive_from(remote_socket, timeout=timeout)
         hexdump(remote_buffer)
 
     remote_buffer = response_handler(remote_buffer)
@@ -93,8 +96,12 @@ def proxy_handler(client_socket, remote_host, remote_port, receive_first):
         print(f"[<==] Sending {len(remote_buffer)} bytes to localhost.")
         client_socket.send(remote_buffer)
 
+    # to keep the connection
+    time_before_disconnect = 10
+    time_left = 0
+
     while True:
-        local_buffer = receive_from(client_socket)
+        local_buffer = receive_from(client_socket, timeout=timeout)
         if len(local_buffer):
             line = f"[==>] Received {len(local_buffer)} bytes from localhost."
             print(line)
@@ -104,26 +111,33 @@ def proxy_handler(client_socket, remote_host, remote_port, receive_first):
             # send the response to the local client
             remote_socket.send(local_buffer)
             print("[==>] Sent to remote.")
-        remote_buffer = receive_from(remote_socket)
+            time_left = time_before_disconnect
 
+        remote_buffer = receive_from(remote_socket, timeout=timeout)
         if len(remote_buffer):
             print(f"[<==] Received {len(remote_buffer)} bytes from remote.")
             hexdump(remote_buffer)
-
             remote_buffer = request_handler(remote_buffer)
             client_socket.send(remote_buffer)
             print("[<==] Sent to localhost.")
+            time_left = time_before_disconnect
 
         if not len(local_buffer) or not len(remote_buffer):
+            time_left -= 1
             # if there is not data to send
-            client_socket.close()
-            remote_socket.close()
-            print("[*] No more data. Closing connections.")
-            break
+            if time_left > 0:
+                print(f"Time left: {time_left}. Type new command, please.")
+                continue
+            else:
+                client_socket.close()
+                remote_socket.close()
+                print("[*] No more data. Closing connections.")
+                break
 
 
-def server_loop(local_host, local_port, remote_host,
-                remote_port, receive_first):
+def server_loop(local_host: str, local_port: int,
+                remote_host: str, remote_port: int,
+                receive_first: bool, timeout: int = 10) -> None:
     """Function server_loop"""
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -135,6 +149,8 @@ def server_loop(local_host, local_port, remote_host,
               "sockets or correct permissions.")
         sys.exit(0)
     print(f"[*] Listening on: {local_host}:{local_port}")
+    # count of connections that the scrypt set in the queue
+    # before to deny of new connections
     server.listen(5)
 
     while True:
@@ -143,23 +159,25 @@ def server_loop(local_host, local_port, remote_host,
         print(line)
         proxy_thread = threading.Thread(
             target=proxy_handler,
-            args=(client_socket, remote_host, remote_port, receive_first)
+            args=(client_socket, remote_host,
+                  remote_port, receive_first, timeout)
         )
         proxy_thread.start()
 
 
 def main():
     """Function main"""
-    if len(sys.argv[1:]) != 5:
+    if len(sys.argv[1:]) != 6:
         print("Usage: ./proxy.py [local_host] [local_port]", end='')
-        print("[remote_host] [remote_port] [receive_first]")
-        print("Example: ./proxy.py 127.0.0.1 9000 10.12.132.1 9000 True")
+        print("[remote_host] [remote_port] [receive_first] [timeout]")
+        print("Example: ./proxy.py 127.0.0.1 9000 10.12.132.1 9000 True 15")
         sys.exit(0)
     local_host = sys.argv[1]
     local_port = int(sys.argv[2])
     remote_host = sys.argv[3]
     remote_port = int(sys.argv[4])
     receive_first = sys.argv[5]
+    timeout = int(sys.argv[6])
 
     if "True" in receive_first:
         receive_first = True
@@ -167,7 +185,7 @@ def main():
         receive_first = False
 
     server_loop(local_host, local_port,
-                remote_host, remote_port, receive_first)
+                remote_host, remote_port, receive_first, timeout)
 
 
 if __name__ == '__main__':
