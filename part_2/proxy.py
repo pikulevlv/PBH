@@ -141,7 +141,7 @@ def server_loop(local_host, local_port, remote_host,
         client_socket, addr = server.accept()
         line = f"> Received incoming connection from {addr[0]}:{addr[1]}"
         print(line)
-        proxy_thread = threading.Trade(
+        proxy_thread = threading.Thread(
             target=proxy_handler,
             args=(client_socket, remote_host, remote_port, receive_first)
         )
