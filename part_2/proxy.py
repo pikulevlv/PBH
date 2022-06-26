@@ -13,12 +13,13 @@ tbl = str.maketrans(hex)
 print(tbl)
 >>> {1072: 'A', 1087: 'P', 1086: 'O', 1074: 'V', 1094: 'Z'}
 print(string.translate(tbl))
->>> 'тAблиZA PреOбрAзOVAния симVOлOV
-'"""
+>>> 'тAблиZA PреOбрAзOVAния симVOлOV'
+"""
 
 HEX_FILTER = ''.join(
     [(len(repr(chr(i))) == 3) and chr(i) or '.' for i in range(256)]
 )
+
 
 def hexdump(src, length=16, show=True):
     """
@@ -59,7 +60,7 @@ def receive_from(connection, timeout=5):
             if not data:
                 break
             buffer += data
-    except Exception as e:
+    except Exception:
         pass
     return buffer
 
@@ -117,7 +118,7 @@ def proxy_handler(client_socket, remote_host, remote_port, receive_first):
             # if there is not data to send
             client_socket.close()
             remote_socket.close()
-            print(f"[*] No more data. Closing connections.")
+            print("[*] No more data. Closing connections.")
             break
 
 
@@ -150,7 +151,7 @@ def server_loop(local_host, local_port, remote_host,
 def main():
     """Function main"""
     if len(sys.argv[1:]) != 5:
-        print("Usage: ./proxy.py [loca_lhost] [local_port]", end='')
+        print("Usage: ./proxy.py [local_host] [local_port]", end='')
         print("[remote_host] [remote_port] [receive_first]")
         print("Example: ./proxy.py 127.0.0.1 9000 10.12.132.1 9000 True")
         sys.exit(0)
