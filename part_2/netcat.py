@@ -7,7 +7,6 @@ import textwrap
 import threading
 
 
-
 def execute(cmd: str) -> str:
     """
     The function executes a command and returns an output
